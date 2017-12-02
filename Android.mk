@@ -16,7 +16,9 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_MODULE_TAGS := eng
 LOCAL_C_INCLUDES += \
-	$(LOCAL_PATH)/MQTTPacket/src
+	$(LOCAL_PATH)/MQTTPacket/src \
+	$(LOCAL_PATH)/MQTTClient-C/src/linux \
+	$(LOCAL_PATH)/MQTTClient-C/src
 
 LOCAL_CFLAGS +=
 
@@ -30,9 +32,11 @@ LOCAL_SRC_FILES := \
 	MQTTPacket/src/MQTTDeserializePublish.c \
 	MQTTPacket/src/MQTTSerializePublish.c \
 	MQTTPacket/src/MQTTSubscribeServer.c \
-	MQTTPacket/src/MQTTFormat.c
+	MQTTPacket/src/MQTTFormat.c \
+	MQTTClient-C/src/linux/MQTTLinux.c \
+	MQTTClient-C/src/MQTTClient.c
 
 LOCAL_SHARED_LIBRARIES := \
 
-LOCAL_MODULE := libmqttpacket
+LOCAL_MODULE := libpahomqtt
 include $(BUILD_SHARED_LIBRARY)

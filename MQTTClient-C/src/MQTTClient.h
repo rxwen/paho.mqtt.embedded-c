@@ -37,6 +37,10 @@
 #include "MQTTPacket.h"
 #include "stdio.h"
 
+#if !defined(MQTTCLIENT_PLATFORM_HEADER)
+#define MQTTCLIENT_PLATFORM_HEADER MQTTLinux.h
+#endif
+
 #if defined(MQTTCLIENT_PLATFORM_HEADER)
 /* The following sequence of macros converts the MQTTCLIENT_PLATFORM_HEADER value
  * into a string constant suitable for use with include.
