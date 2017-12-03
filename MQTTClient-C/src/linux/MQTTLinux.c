@@ -110,6 +110,7 @@ void NetworkInit(Network* n)
 	n->my_socket = 0;
 	n->mqttread = linux_read;
 	n->mqttwrite = linux_write;
+    n->user_data = NULL;
 }
 
 
