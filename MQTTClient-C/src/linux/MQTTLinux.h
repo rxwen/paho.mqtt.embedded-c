@@ -17,6 +17,10 @@
 #if !defined(__MQTT_LINUX_)
 #define __MQTT_LINUX_
 
+#if defined(__cplusplus)
+ extern "C" {
+#endif
+
 #if defined(WIN32_DLL) || defined(WIN64_DLL)
   #define DLLImport __declspec(dllimport)
   #define DLLExport __declspec(dllexport)
@@ -71,5 +75,9 @@ int linux_write(Network*, unsigned char*, int, int);
 DLLExport void NetworkInit(Network*);
 DLLExport int NetworkConnect(Network*, char*, int);
 DLLExport void NetworkDisconnect(Network*);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
