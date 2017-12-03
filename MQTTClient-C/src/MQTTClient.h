@@ -134,6 +134,8 @@ typedef struct MQTTClient
     Mutex mutex;
     Thread thread;
 #endif
+    void* bufLock;
+    int enableBufLock;
 } MQTTClient;
 
 #define DefaultClient {0, 0, 0, 0, NULL, NULL, 0, 0, 0}

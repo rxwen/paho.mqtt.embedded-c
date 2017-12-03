@@ -16,6 +16,9 @@
  *   Ian Craggs - add ability to set message handler separately #6
  *******************************************************************************/
 #include "MQTTClient.h"
+#if defined(POSIX_THREAD)
+#include <pthread.h>
+#endif
 
 static void NewMessageData(MessageData* md, MQTTString* aTopicName, MQTTMessage* aMessage) {
     md->topicName = aTopicName;
@@ -74,6 +77,11 @@ void MQTTClientInit(MQTTClient* c, Network* network, unsigned int command_timeou
 #if defined(MQTT_TASK)
 	  MutexInit(&c->mutex);
 #endif
+#if defined(POSIX_THREAD)
+    c->bufLock = malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(c->bufLock, NULL);
+    c->enableBufLock = 0;
+#endif
 }
 
 
@@ -121,7 +129,7 @@ static int readPacket(MQTTClient* c, Timer* timer)
     decodePacket(c, &rem_len, TimerLeftMS(timer));
     len += MQTTPacket_encode(c->readbuf + 1, rem_len); /* put the original remaining length back into the buffer */
 
-    if (rem_len > (c->readbuf_size - len))
+    if (rem_len > ((int)c->readbuf_size - len))
     {
         rc = BUFFER_OVERFLOW;
         goto exit;
@@ -222,9 +230,15 @@ int keepalive(MQTTClient* c)
             Timer timer;
             TimerInit(&timer);
             TimerCountdownMS(&timer, 1000);
+#if defined(POSIX_THREAD)
+            if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
             int len = MQTTSerialize_pingreq(c->buf, c->buf_size);
             if (len > 0 && (rc = sendPacket(c, len, &timer)) == SUCCESS) // send the ping packet
                 c->ping_outstanding = 1;
+#if defined(POSIX_THREAD)
+            if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
+#endif
         }
     }
 
@@ -283,6 +297,9 @@ int cycle(MQTTClient* c, Timer* timer)
             deliverMessage(c, &topicName, &msg);
             if (msg.qos != QOS0)
             {
+#if defined(POSIX_THREAD)
+                if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
                 if (msg.qos == QOS1)
                     len = MQTTSerialize_ack(c->buf, c->buf_size, PUBACK, 0, msg.id);
                 else if (msg.qos == QOS2)
@@ -291,6 +308,9 @@ int cycle(MQTTClient* c, Timer* timer)
                     rc = FAILURE;
                 else
                     rc = sendPacket(c, len, timer);
+#if defined(POSIX_THREAD)
+                if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
+#endif
                 if (rc == FAILURE)
                     goto exit; // there was a problem
             }
@@ -301,6 +321,9 @@ int cycle(MQTTClient* c, Timer* timer)
         {
             unsigned short mypacketid;
             unsigned char dup, type;
+#if defined(POSIX_THREAD)
+            if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
             if (MQTTDeserialize_ack(&type, &dup, &mypacketid, c->readbuf, c->readbuf_size) != 1)
                 rc = FAILURE;
             else if ((len = MQTTSerialize_ack(c->buf, c->buf_size,
@@ -308,6 +331,9 @@ int cycle(MQTTClient* c, Timer* timer)
                 rc = FAILURE;
             else if ((rc = sendPacket(c, len, timer)) != SUCCESS) // send the PUBREL packet
                 rc = FAILURE; // there was a problem
+#if defined(POSIX_THREAD)
+            if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
+#endif
             if (rc == FAILURE)
                 goto exit; // there was a problem
             break;
@@ -424,10 +450,16 @@ int MQTTConnectWithResults(MQTTClient* c, MQTTPacket_connectData* options, MQTTC
     c->keepAliveInterval = options->keepAliveInterval;
     c->cleansession = options->cleansession;
     TimerCountdown(&c->last_received, c->keepAliveInterval);
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
     if ((len = MQTTSerialize_connect(c->buf, c->buf_size, options)) <= 0)
         goto exit;
     if ((rc = sendPacket(c, len, &connect_timer)) != SUCCESS)  // send the connect packet
         goto exit; // there was a problem
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
+#endif
 
     // this will be a blocking call, wait for the connack
     if (waitfor(c, CONNACK, &connect_timer) == CONNACK)
@@ -524,11 +556,17 @@ int MQTTSubscribeWithResults(MQTTClient* c, const char* topicFilter, enum QoS qo
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
     len = MQTTSerialize_subscribe(c->buf, c->buf_size, 0, getNextPacketId(c), 1, &topic, (int*)&qos);
     if (len <= 0)
         goto exit;
     if ((rc = sendPacket(c, len, &timer)) != SUCCESS) // send the subscribe packet
         goto exit;             // there was a problem
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
+#endif
 
     if (waitfor(c, SUBACK, &timer) == SUBACK)      // wait for suback
     {
@@ -579,10 +617,16 @@ int MQTTUnsubscribe(MQTTClient* c, const char* topicFilter)
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
     if ((len = MQTTSerialize_unsubscribe(c->buf, c->buf_size, 0, getNextPacketId(c), 1, &topic)) <= 0)
         goto exit;
     if ((rc = sendPacket(c, len, &timer)) != SUCCESS) // send the subscribe packet
         goto exit; // there was a problem
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
+#endif
 
     if (waitfor(c, UNSUBACK, &timer) == UNSUBACK)
     {
@@ -626,12 +670,18 @@ int MQTTPublish(MQTTClient* c, const char* topicName, MQTTMessage* message)
     if (message->qos == QOS1 || message->qos == QOS2)
         message->id = getNextPacketId(c);
 
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
     len = MQTTSerialize_publish(c->buf, c->buf_size, 0, message->qos, message->retained, message->id,
               topic, (unsigned char*)message->payload, message->payloadlen);
     if (len <= 0)
         goto exit;
     if ((rc = sendPacket(c, len, &timer)) != SUCCESS) // send the subscribe packet
         goto exit; // there was a problem
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
+#endif
 
     if (message->qos == QOS1)
     {
@@ -680,9 +730,15 @@ int MQTTDisconnect(MQTTClient* c)
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
 	  len = MQTTSerialize_disconnect(c->buf, c->buf_size);
     if (len > 0)
         rc = sendPacket(c, len, &timer);            // send the disconnect packet
+#if defined(POSIX_THREAD)
+    if(c->enableBufLock) pthread_mutex_lock(c->bufLock);
+#endif
     MQTTCloseSession(c);
 
 #if defined(MQTT_TASK)
