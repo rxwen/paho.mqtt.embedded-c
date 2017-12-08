@@ -239,7 +239,9 @@ int keepalive(MQTTClient* c)
             {
                 c->ping_outstanding = 1;
                 // allow more time to wait for response
-                TimerCountdown(&c->last_received, c->command_timeout_ms);
+                if(TimerLeftMS(&c->last_received) < (int)c->command_timeout_ms) {
+                    TimerCountdown(&c->last_received, c->command_timeout_ms);
+                }
             }
 #if defined(POSIX_THREAD)
             if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
