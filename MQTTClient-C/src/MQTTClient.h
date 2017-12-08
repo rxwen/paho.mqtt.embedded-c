@@ -136,6 +136,7 @@ typedef struct MQTTClient
 #endif
     void* bufLock;
     int enableBufLock;
+    void (*sessionClosedHandler)(struct MQTTClient*);
 } MQTTClient;
 
 #define DefaultClient {0, 0, 0, 0, NULL, NULL, 0, 0, 0}

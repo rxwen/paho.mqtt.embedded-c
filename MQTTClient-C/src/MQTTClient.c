@@ -82,6 +82,7 @@ void MQTTClientInit(MQTTClient* c, Network* network, unsigned int command_timeou
     pthread_mutex_init(c->bufLock, NULL);
     c->enableBufLock = 0;
 #endif
+    c->sessionClosedHandler = NULL;
 }
 
 
@@ -262,6 +263,9 @@ void MQTTCloseSession(MQTTClient* c)
     c->isconnected = 0;
     if (c->cleansession)
         MQTTCleanSession(c);
+    if (c->sessionClosedHandler != NULL) {
+        c->sessionClosedHandler(c);
+    }
 }
 
 
