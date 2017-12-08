@@ -236,7 +236,11 @@ int keepalive(MQTTClient* c)
 #endif
             int len = MQTTSerialize_pingreq(c->buf, c->buf_size);
             if (len > 0 && (rc = sendPacket(c, len, &timer)) == SUCCESS) // send the ping packet
+            {
                 c->ping_outstanding = 1;
+                // allow more time to wait for response
+                TimerCountdown(&c->last_received, c->command_timeout_ms);
+            }
 #if defined(POSIX_THREAD)
             if(c->enableBufLock) pthread_mutex_unlock(c->bufLock);
 #endif
