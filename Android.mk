@@ -36,7 +36,7 @@ LOCAL_SRC_FILES := \
 	MQTTClient-C/src/linux/MQTTLinux.c \
 	MQTTClient-C/src/MQTTClient.c
 
-LOCAL_SHARED_LIBRARIES := \
+LOCAL_SHARED_LIBRARIES := liblog
 
 LOCAL_MODULE := libpahomqtt
 include $(BUILD_SHARED_LIBRARY)

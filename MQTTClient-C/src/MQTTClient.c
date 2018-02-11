@@ -16,6 +16,7 @@
  *   Ian Craggs - add ability to set message handler separately #6
  *******************************************************************************/
 #include "MQTTClient.h"
+#include <utils/Log.h>
 #if defined(POSIX_THREAD)
 #include <pthread.h>
 #endif
@@ -45,6 +46,7 @@ static int sendPacket(MQTTClient* c, int length, Timer* timer)
     }
     if (sent == length)
     {
+        LOGFL("set last_sent %p count down to : %d", &c->last_sent, c->keepAliveInterval);
         TimerCountdown(&c->last_sent, c->keepAliveInterval); // record the fact that we have successfully sent the packet
         rc = SUCCESS;
     }
@@ -121,6 +123,7 @@ static int readPacket(MQTTClient* c, Timer* timer)
     int rem_len = 0;
 
     /* 1. read the header byte.  This has the packet type in it */
+    LOGI("mqttread with timeout: %p  %d", timer, TimerLeftMS(timer));
     int rc = c->ipstack->mqttread(c->ipstack, c->readbuf, 1, TimerLeftMS(timer));
     if (rc != 1)
         goto exit;
@@ -222,12 +225,16 @@ int keepalive(MQTTClient* c)
     if (c->keepAliveInterval == 0)
         goto exit;
 
+    LOGFL("last_sent %p expired: %d, last_received expired: %d",
+            &c->last_sent,
+        TimerIsExpired(&c->last_sent), TimerIsExpired(&c->last_received));
     if (TimerIsExpired(&c->last_sent) || TimerIsExpired(&c->last_received))
     {
         if (c->ping_outstanding)
             rc = FAILURE; /* PINGRESP not received in keepalive interval */
         else
         {
+            LOGFL("last_sent or last_received timeouted out, try ping");
             Timer timer;
             TimerInit(&timer);
             TimerCountdownMS(&timer, 1000);
@@ -265,6 +272,7 @@ void MQTTCleanSession(MQTTClient* c)
 
 void MQTTCloseSession(MQTTClient* c)
 {
+    LOGFL("MQTTCloseSession");
     c->ping_outstanding = 0;
     c->isconnected = 0;
     if (c->cleansession)
@@ -351,7 +359,10 @@ int cycle(MQTTClient* c, Timer* timer)
 
         case PUBCOMP:
             break;
+        case PINGREQ:
+            break;
         case PINGRESP:
+            LOGI("received ping resp");
             c->ping_outstanding = 0;
             break;
     }
