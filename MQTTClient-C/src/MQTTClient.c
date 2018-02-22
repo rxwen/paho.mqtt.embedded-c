@@ -46,7 +46,7 @@ static int sendPacket(MQTTClient* c, int length, Timer* timer)
     }
     if (sent == length)
     {
-        LOGFL("set last_sent %p count down to : %d", &c->last_sent, c->keepAliveInterval);
+        LOGI("set last_sent %p count down to : %d", &c->last_sent, c->keepAliveInterval);
         TimerCountdown(&c->last_sent, c->keepAliveInterval); // record the fact that we have successfully sent the packet
         rc = SUCCESS;
     }
@@ -225,7 +225,7 @@ int keepalive(MQTTClient* c)
     if (c->keepAliveInterval == 0)
         goto exit;
 
-    LOGFL("last_sent %p expired: %d, last_received expired: %d",
+    LOGI("last_sent %p expired: %d, last_received expired: %d",
             &c->last_sent,
         TimerIsExpired(&c->last_sent), TimerIsExpired(&c->last_received));
     if (TimerIsExpired(&c->last_sent) || TimerIsExpired(&c->last_received))
@@ -234,7 +234,7 @@ int keepalive(MQTTClient* c)
             rc = FAILURE; /* PINGRESP not received in keepalive interval */
         else
         {
-            LOGFL("last_sent or last_received timeouted out, try ping");
+            LOGI("last_sent or last_received timeouted out, try ping");
             Timer timer;
             TimerInit(&timer);
             TimerCountdownMS(&timer, 1000);
@@ -272,7 +272,7 @@ void MQTTCleanSession(MQTTClient* c)
 
 void MQTTCloseSession(MQTTClient* c)
 {
-    LOGFL("MQTTCloseSession");
+    LOGW("MQTTCloseSession");
     c->ping_outstanding = 0;
     c->isconnected = 0;
     if (c->cleansession)
