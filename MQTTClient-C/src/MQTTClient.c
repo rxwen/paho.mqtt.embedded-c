@@ -230,8 +230,10 @@ int keepalive(MQTTClient* c)
         TimerIsExpired(&c->last_sent), TimerIsExpired(&c->last_received));
     if (TimerIsExpired(&c->last_sent) || TimerIsExpired(&c->last_received))
     {
-        if (c->ping_outstanding)
+        if (c->ping_outstanding) {
             rc = FAILURE; /* PINGRESP not received in keepalive interval */
+            LOGE("ping failed, no PINGRESP received");
+        }
         else
         {
             LOGI("last_sent or last_received timeouted out, try ping");
