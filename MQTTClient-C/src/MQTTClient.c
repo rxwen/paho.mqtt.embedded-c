@@ -228,7 +228,7 @@ int keepalive(MQTTClient* c)
     LOGI("last_sent %p expired: %d, last_received expired: %d",
             &c->last_sent,
         TimerIsExpired(&c->last_sent), TimerIsExpired(&c->last_received));
-    if (TimerIsExpired(&c->last_sent) || TimerIsExpired(&c->last_received))
+    if (TimerIsExpired(&c->last_received))
     {
         if (c->ping_outstanding) {
             rc = FAILURE; /* PINGRESP not received in keepalive interval */
@@ -236,7 +236,7 @@ int keepalive(MQTTClient* c)
         }
         else
         {
-            LOGI("last_sent or last_received timeouted out, try ping");
+            LOGI("last_received timeouted out, try ping");
             Timer timer;
             TimerInit(&timer);
             TimerCountdownMS(&timer, 1000);
