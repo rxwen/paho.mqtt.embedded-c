@@ -147,8 +147,9 @@ static int readPacket(MQTTClient* c, Timer* timer)
 
     header.byte = c->readbuf[0];
     rc = header.bits.type;
-    if (c->keepAliveInterval > 0)
+    if (c->keepAliveInterval > 0) {
         TimerCountdown(&c->last_received, c->keepAliveInterval); // record the fact that we have successfully received a packet
+    }
 exit:
     return rc;
 }
@@ -225,11 +226,10 @@ int keepalive(MQTTClient* c)
     if (c->keepAliveInterval == 0)
         goto exit;
 
-    /*LOGI("last_sent %p expired: %d, last_received expired: %d",*/
-            /*&c->last_sent,*/
-        /*TimerIsExpired(&c->last_sent), TimerIsExpired(&c->last_received));*/
     if (TimerIsExpired(&c->last_sent) || TimerIsExpired(&c->last_received))
     {
+        /*LOGI("last_sent expired: %d, last_received expired: %d",*/
+            /*TimerIsExpired(&c->last_sent), TimerIsExpired(&c->last_received));*/
         if (c->ping_outstanding) {
             rc = FAILURE; /* PINGRESP not received in keepalive interval */
             LOGE("ping failed, no PINGRESP received");
@@ -249,7 +249,7 @@ int keepalive(MQTTClient* c)
                 c->ping_outstanding = 1;
                 // allow more time to wait for response
                 if(TimerLeftMS(&c->last_received) < (int)c->command_timeout_ms) {
-                    TimerCountdown(&c->last_received, c->command_timeout_ms);
+                    TimerCountdownMS(&c->last_received, c->command_timeout_ms);
                 }
             }
 #if defined(POSIX_THREAD)
